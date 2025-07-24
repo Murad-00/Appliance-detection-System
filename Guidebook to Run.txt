@@ -1,0 +1,242 @@
+# EmptyEye Project - Guidebook to Run Code
+
+## 📋 Prerequisites
+
+### System Requirements
+- Python 3.8 or higher
+- MySQL Server
+- Webcam/Camera device
+- Internet connection (for email functionality)
+
+### Hardware Requirements
+- Minimum 4GB RAM (8GB recommended for YOLO processing)
+- GPU support recommended for faster detection (CUDA-compatible)
+- Webcam or IP camera
+
+## 🚀 Setup Instructions
+
+### 1. Environment Setup
+```bash
+# Navigate to project directory
+cd /home/rao_salman/Documents/EmptyEyeProject
+
+# Create virtual environment (recommended)
+python3 -m venv .venv
+
+# Activate virtual environment
+source .venv/bin/activate  # Linux/Mac
+# OR
+.venv\Scripts\activate     # Windows
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### 2. Database Setup
+```bash
+# Install MySQL if not already installed
+sudo apt-get install mysql-server  # Ubuntu/Debian
+# OR
+brew install mysql                  # macOS
+
+# Start MySQL service
+sudo systemctl start mysql         # Linux
+# OR
+brew services start mysql          # macOS
+
+# Create database and user
+mysql -u root -p
+```
+
+```sql
+-- In MySQL console:
+CREATE DATABASE emptyeye_db;
+CREATE USER 'emptyeye_user'@'localhost' IDENTIFIED BY 'your_password';
+GRANT ALL PRIVILEGES ON emptyeye_db.* TO 'emptyeye_user'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;
+```
+
+```or just simply run the recreate_db.py script``` 
+
+### 3. Database Configuration
+Edit `db_config.py` with your MySQL credentials:
+```python
+def get_db_connection():
+    return mysql.connector.connect(
+        host='localhost',
+        user='emptyeye_user',        # Your MySQL username
+        password='your_password',    # Your MySQL password
+        database='emptyeye_db'       # Your database name
+    )
+```
+
+### 4. Initialize Database Tables
+```bash
+# Run database recreation script
+python recreate_db.py
+
+# Test database connection
+python test_db.py
+```
+
+### 5. Email Configuration
+Edit `email_utils.py` to configure SMTP settings:
+```python
+# Update these variables with your email provider settings
+SMTP_SERVER = 'smtp.gmail.com'      # Gmail SMTP
+SMTP_PORT = 587
+EMAIL_ADDRESS = 'your_email@gmail.com'
+EMAIL_PASSWORD = 'your_app_password'  # Use app password for Gmail
+```
+
+**Note**: For Gmail, you need to:
+1. Enable 2-factor authentication
+2. Generate an app password
+3. Use the app password instead of your regular password
+
+### 6. Model Files
+Ensure YOLO model files are in place:
+- Main model: `yolo11n.pt` (should be in root directory)
+- AC detection model: `models/ac/best.pt`
+- Ceiling fan model: `models/ceiling_fan/best.pt`
+
+If models are missing, you'll need to train them or obtain pre-trained models.
+
+## 🏃‍♂️ Running the Application
+
+### 1. Start the Flask Application
+```bash
+# Make sure you're in the project directory and virtual environment is active
+python app.py
+```
+
+The application will start on `http://127.0.0.1:5000`
+
+### 2. Access the Web Interface
+1. Open your web browser
+2. Navigate to `http://127.0.0.1:5000`
+3. Create a new account or login
+4. Access the home dashboard to view live video feed with detection
+
+## 🔧 Configuration Options
+
+### Camera Settings
+In `app.py`, modify the camera source:
+```python
+# For default webcam (usually 0)
+cap = cv2.VideoCapture(0)
+
+# For IP camera
+cap = cv2.VideoCapture('http://your_ip_camera_url')
+
+# For video file
+cap = cv2.VideoCapture('path/to/video/file.mp4')
+```
+
+### Detection Confidence
+Adjust detection confidence in individual detection scripts:
+```python
+# In scripts/ac.py, scripts/human.py, etc.
+results = model.predict(source=frame, conf=0.2, verbose=False)
+#                                    ^^^^
+#                              Confidence threshold (0.0-1.0)
+```
+
+### Server Configuration
+In `app.py`, modify server settings:
+```python
+app.config['SERVER_NAME'] = '127.0.0.1:5000'  # Change for production
+
+# For production deployment
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=False)
+```
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+#### 1. Camera Not Working
+```bash
+# Check available cameras
+ls /dev/video*
+
+# Test camera with OpenCV
+python -c "import cv2; cap = cv2.VideoCapture(0); print('Camera working:', cap.isOpened())"
+```
+
+#### 2. MySQL Connection Error
+- Verify MySQL service is running
+- Check credentials in `db_config.py`
+- Ensure database and user exist
+- Test connection with `python test_db.py`
+
+#### 3. YOLO Model Loading Error
+- Verify model files exist in correct locations
+- Check file permissions
+- Ensure ultralytics package is installed correctly
+
+#### 4. Email Not Sending
+- Verify SMTP settings in `email_utils.py`
+- Check firewall/antivirus blocking SMTP
+- For Gmail, ensure app password is used
+- Test with a simple email script
+
+#### 5. Import Errors
+```bash
+# Reinstall dependencies
+pip install --upgrade -r requirements.txt
+
+# Check Python version
+python --version  # Should be 3.8+
+```
+
+### Performance Optimization
+
+#### 1. GPU Acceleration
+```bash
+# Install CUDA-enabled PyTorch (if you have NVIDIA GPU)
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+```
+
+#### 2. Reduce Video Resolution
+In `app.py`, add frame resizing:
+```python
+# Resize frame for faster processing
+frame = cv2.resize(frame, (640, 480))
+```
+
+#### 3. Adjust Detection Frequency
+```python
+# Process every nth frame instead of every frame
+frame_count = 0
+if frame_count % 3 == 0:  # Process every 3rd frame
+    # Run detection
+frame_count += 1
+```
+
+## 📊 Usage Guide
+
+### 1. User Registration
+- Navigate to signup page
+- Enter username, password, and valid email
+- Email domain validation is performed
+- Account is created and you can login
+
+### 2. Video Monitoring
+- Login to access home dashboard
+- Live video feed shows camera input
+- Detection boxes appear around detected objects
+- Status indicators show appliance states (on/off)
+
+### 3. Detection Types
+- **AC Units**: Green box when on, red when off
+- **Ceiling Fans**: Detection with status indication
+- **Humans**: Person detection for presence monitoring
+- **Mobile Phones**: Device detection
+
+### 4. Notifications
+- View notification history in notifications page
+- Email alerts can be configured for specific events
+
